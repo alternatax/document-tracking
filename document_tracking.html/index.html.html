@@ -1,0 +1,1117 @@
+<!doctype html>
+<html lang="th" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document Tracking System</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Sarabun', 'Plus Jakarta Sans', 'sans-serif'],
+        display: ['Plus Jakarta Sans', 'Sarabun', 'sans-serif']
+      }
+    }
+  }
+}
+</script>
+  <style>
+html, body { height: 100%; margin: 0; }
+.app-root { height: 100%; overflow: auto; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.5); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.8); }
+.tab-active { background: white; color: #2563eb; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-weight: 600; font-size: 0.95rem; border-bottom: 3px solid white; }
+.tab-btn { color: white; background: #2563eb; font-weight: 600; font-size: 0.95rem; letter-spacing: 0.3px; }
+.tab-btn:hover { background: #1e40af; transition: all 0.2s; }
+.card-glass { background: white; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.08); backdrop-filter: none; }
+.stat-card { transition: all 0.3s ease; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.btn-primary { background: #667eea; transition: all 0.2s; font-weight: 600; color: white; letter-spacing: 0.3px; }
+.btn-primary:hover { background: #5568d3; box-shadow: 0 2px 8px rgba(102,126,234,0.3); transform: translateY(-1px); }
+.btn-danger { background: #dc2626; font-weight: 600; color: white; letter-spacing: 0.3px; }
+.btn-danger:hover { background: #b91c1c; box-shadow: 0 4px 12px rgba(220,38,38,0.4); }
+.input-dark { background: white; border: 1px solid #d1d5db; color: #1f2937; transition: all 0.2s; font-size: 0.95rem; padding: 12px 14px; border-radius: 8px; letter-spacing: 0.2px; }
+.input-dark:focus { border-color: #667eea; outline: none; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
+.input-dark::placeholder { color: #94a3b8; font-size: 0.9rem; }
+.fade-in { animation: fadeIn 0.3s ease-out; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.chart-bar { transition: height 0.6s cubic-bezier(0.34,1.56,0.64,1); }
+.doc-chip { padding: 8px 16px; border-radius: 9999px; font-size: 0.85rem; font-weight: 600; display: inline-block; letter-spacing: 0.2px; }
+.doc-received { background: rgba(34,197,94,0.2); color: #86efac; }
+.doc-missing { background: rgba(239,68,68,0.2); color: #fca5a5; }
+.doc-na { background: rgba(75,85,99,0.3); color: #cbd5e1; }
+.doc-late { background: rgba(217,119,6,0.2); color: #fdba74; }
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+.toast { padding: 14px 20px; border-radius: 10px; color: white; font-weight: 600; animation: slideIn 0.3s ease-out; margin-bottom: 12px; font-size: 0.95rem; backdrop-filter: blur(10px); letter-spacing: 0.2px; }
+@keyframes slideIn { from { opacity:0; transform:translateX(100px); } to { opacity:1; transform:translateX(0); } }
+.dropdown-list { max-height: 200px; overflow-y: auto; background: white; border: 1px solid #e5e7eb; border-radius: 10px; position: absolute; width: 100%; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.1); backdrop-filter: none; }
+.dropdown-item { padding: 12px 14px; cursor: pointer; color: #1e293b; font-size: 0.9rem; letter-spacing: 0.2px; }
+.dropdown-item:hover { background: #f3f4f6; }
+.confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+#confirmDialog .card-glass { background: white; color: #1f2937; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: flex; align-items: center; justify-content: center; z-index: 200; }
+</style>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body class="h-full text-blue-600 font-sans leading-relaxed" style="background: #e0f2fe; color: #ffffff;">
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="text-center">
+      <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+      <p class="text-blue-700 font-semibold text-sm">กำลังโหลดข้อมูล...</p>
+    </div>
+  </div>
+
+  <div class="app-root flex flex-col h-full" id="appRoot">
+   <!-- Toast Container -->
+   <div class="toast-container" id="toastContainer"></div>
+   <!-- Header -->
+   <header class="px-4 py-3 flex items-center justify-between flex-shrink-0" style="background: #3b82f6; border-bottom: 1px solid #1e40af; box-shadow: 0 1px 3px rgba(59,130,246,0.2);">
+    <div class="flex items-center gap-2">
+     <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shadow-sm">
+      <i data-lucide="file-check" class="w-4 h-4 text-white"></i>
+     </div>
+     <div>
+      <h1 id="appTitle" class="text-2xl font-bold font-display text-white leading-tight">Document Tracking</h1>
+      <p class="text-xs text-blue-100 font-semibold mt-0.5">บริษัท อัลเทอร์เนทีฟส์ จำกัด</p>
+     </div>
+    </div>
+    <div class="text-xs text-blue-50 font-semibold" id="currentDateTime"></div>
+   </header>
+   <!-- Tab Navigation -->
+   <nav class="px-4 py-2 flex gap-2 overflow-x-auto flex-shrink-0 border-b" id="tabNav" style="background: #e0f2fe; border-color: #bae6fd;">
+    <button onclick="switchTab('dashboard')" data-tab="dashboard" class="tab-btn tab-active px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap flex items-center gap-1 transition-all bg-gradient-to-r from-sky-400 to-blue-500 text-white shadow-md"> <i data-lucide="layout-dashboard" class="w-4 h-4 text-cyan-100"></i> Dashboard </button>
+    <button onclick="switchTab('receive')" data-tab="receive" class="tab-btn px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap flex items-center gap-1 transition-all bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:shadow-lg"> <i data-lucide="inbox" class="w-4 h-4 text-indigo-100"></i> รับเอกสาร </button>
+    <button onclick="switchTab('check')" data-tab="check" class="tab-btn px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap flex items-center gap-1 transition-all bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:shadow-lg"> <i data-lucide="clipboard-check" class="w-4 h-4 text-yellow-100"></i> ตรวจเช็คเอกสาร </button>
+    <button onclick="switchTab('settings')" data-tab="settings" class="tab-btn px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap flex items-center gap-1 transition-all bg-gradient-to-r from-violet-600 to-purple-700 text-white hover:shadow-lg"> <i data-lucide="settings" class="w-4 h-4 text-fuchsia-100"></i> การตั้งค่า </button>
+   </nav>
+   <!-- Main Content -->
+   <main class="flex-1 overflow-auto p-4" id="mainContent" style="background: #e0f2fe;">
+    <!-- DASHBOARD TAB -->
+    <div id="tab-dashboard" class="tab-content fade-in">
+     <div class="flex flex-wrap items-center gap-3 mb-4">
+      <h2 class="text-xl font-bold font-display text-white bg-gradient-to-r from-blue-600 to-cyan-500 rounded-lg px-4 py-2 shadow-lg border-l-4 border-cyan-300">📊 ภาพรวมเอกสาร</h2>
+      <select id="dashRoundFilter" class="input-dark rounded-lg px-3 py-2 text-sm font-semibold min-w-56" onchange="renderDashboard()"></select>
+      <select id="dashStatusFilter" class="input-dark rounded-lg px-3 py-2 text-sm font-semibold min-w-56" onchange="renderDashboard()">
+       <option value="">-- ทั้งหมด --</option>
+       <option value="notReceived">1. ยังไม่ได้รับ</option>
+       <option value="late">2. ล่าช้า</option>
+       <option value="received">3. ได้รับเอกสารครบถ้วน</option>
+      </select>
+      <button onclick="downloadCheckReport()" class="btn-primary text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+       <i data-lucide="download" class="w-4 h-4"></i> Export CSV
+      </button>
+     </div>
+     <!-- Stats -->
+     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4" id="dashStats"></div>
+     <!-- Stats Counter -->
+     <div class="card-glass rounded-lg p-4 mb-4">
+      <h3 class="text-sm font-bold text-slate-800 mb-4">📊 แผนภูมิสรุปเอกสาร</h3>
+      <div class="flex items-end justify-center gap-6 h-56 px-6" id="dashChart"></div>
+     </div>
+     <!-- Company List -->
+     <div class="card-glass rounded-lg p-4 mb-4">
+      <h3 class="text-xs font-bold text-slate-800 mb-2">สถานะบริษัท</h3>
+      <div id="dashCompanyList" class="space-y-1.5"></div>
+      <p id="dashEmpty" class="text-gray-500 text-center py-4 hidden text-xs">ยังไม่มีข้อมูล</p>
+     </div>
+    </div>
+
+    <!-- RECEIVE TAB -->
+    <div id="tab-receive" class="tab-content hidden fade-in">
+     <h2 class="text-sm font-bold font-display text-white rounded-lg px-4 py-2 shadow-md border-l-4 border-blue-300 mb-3 flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-500"><i data-lucide="inbox" class="w-4 h-4 text-blue-100"></i>รับเอกสาร</h2>
+     <div class="card-glass rounded-lg p-4 mb-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+       <!-- Company Search -->
+       <div class="relative">
+        <label class="block text-xs text-slate-700 mb-1.5 font-semibold tracking-wide">บริษัทลูกค้า</label>
+        <input type="text" id="recvCompanyInput" class="input-dark rounded-lg px-3 py-2 w-full text-xs" placeholder="พิมพ์ค้นหาบริษัท..." oninput="filterCompanyDropdown('recv')" onfocus="showCompanyDropdown('recv')">
+        <div id="recvCompanyDropdown" class="dropdown-list hidden"></div>
+       </div>
+       <div>
+        <label class="block text-xs text-slate-700 mb-1.5 font-semibold tracking-wide">วันที่รับเอกสาร</label>
+        <input type="date" id="recvDate" class="input-dark rounded-lg px-3 py-2 w-full text-xs">
+       </div>
+       <div>
+        <label class="block text-xs text-slate-700 mb-1.5 font-semibold tracking-wide">ผู้รับเอกสาร</label>
+        <select id="recvPerson" class="input-dark rounded-lg px-3 py-2 w-full text-xs"></select>
+       </div>
+      </div>
+      <button onclick="saveReceive()" id="recvSaveBtn" class="btn-primary text-white px-6 py-2 rounded-lg text-sm font-semibold"> บันทึกรับเอกสาร </button>
+     </div>
+     <!-- History -->
+     <div class="card-glass rounded-lg p-4">
+      <h3 class="text-xs font-bold text-slate-800 mb-2">ประวัติรับเอกสาร</h3>
+      <div id="recvHistory" class="space-y-1.5"></div>
+      <p id="recvEmpty" class="text-gray-500 text-center py-4 hidden text-xs">ยังไม่มีประวัติ</p>
+     </div>
+    </div>
+
+    <!-- CHECK TAB -->
+    <div id="tab-check" class="tab-content hidden fade-in">
+     <h2 class="text-sm font-bold font-display text-white rounded-lg px-4 py-2 shadow-md border-l-4 border-orange-300 mb-3 flex items-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500"><i data-lucide="clipboard-check" class="w-4 h-4 text-orange-100"></i>ตรวจเช็คเอกสาร</h2>
+     <div class="card-glass rounded-lg p-4 mb-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+       <div>
+        <label class="block text-xs text-slate-700 mb-1.5 font-semibold tracking-wide">บริษัทลูกค้า</label>
+        <input type="text" id="checkCompanyInput" class="input-dark rounded-lg px-3 py-2 w-full text-xs" placeholder="พิมพ์ค้นหาบริษัท..." oninput="filterCompanyDropdown('check')" onfocus="showCompanyDropdown('check')">
+        <div id="checkCompanyDropdown" class="dropdown-list hidden"></div>
+       </div>
+       <div>
+        <label class="block text-xs text-slate-700 mb-1.5 font-semibold tracking-wide">วันที่เช็คเอกสาร</label>
+        <input type="date" id="checkDate" class="input-dark rounded-lg px-3 py-2 w-full text-xs">
+       </div>
+       <div>
+        <label class="block text-xs text-slate-700 mb-1.5 font-semibold tracking-wide">ผู้ทำบัญชี</label>
+        <select id="checkPerson" class="input-dark rounded-lg px-3 py-2 w-full text-xs"></select>
+       </div>
+      </div>
+      <label class="block text-xs text-slate-700 mb-2 font-semibold tracking-wide">เอกสารที่ได้รับ <span class="text-slate-500 font-normal text-xs">(ติ๊ก "ไม่มี" หากบริษัทไม่มีเอกสารนั้น)</span></label>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3" id="checkDocList"></div>
+      <button onclick="buildCheckDocList()" class="btn-primary text-white px-6 py-2 rounded-lg text-sm font-semibold mb-3">สร้างรายการเอกสาร</button>
+      <div id="checkDocFields" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3"></div>
+      <button onclick="saveCheck()" id="checkSaveBtn" class="btn-primary text-white px-6 py-2 rounded-lg text-sm font-semibold">บันทึกตรวจเช็ค</button>
+     </div>
+     <div class="card-glass rounded-lg p-4">
+      <h3 class="text-xs font-bold text-slate-800 mb-2">ประวัติตรวจเช็ค</h3>
+      <div id="checkHistory" class="space-y-1.5"></div>
+      <p id="checkEmpty" class="text-gray-500 text-center py-4 hidden text-xs">ยังไม่มีประวัติ</p>
+     </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div id="tab-settings" class="tab-content hidden fade-in">
+     <h2 class="text-sm font-bold font-display text-white rounded-lg px-4 py-2 shadow-md border-l-4 border-purple-300 mb-3 flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500"><i data-lucide="settings" class="w-4 h-4 text-purple-100"></i>การตั้งค่า</h2>
+
+     <!-- Document Round Settings -->
+     <div class="card-glass rounded-lg p-4 mb-4">
+      <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><i data-lucide="calendar-clock" class="w-4 h-4 text-cyan-500"></i>กำหนดรอบเอกสาร</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+       <div class="relative">
+        <label class="block text-xs text-slate-700 mb-1.5 font-semibold tracking-wide">บริษัทลูกค้า</label>
+        <input type="text" id="setCompanyInput" class="input-dark rounded-lg px-3 py-2 w-full text-xs" placeholder="พิมพ์ค้นหาบริษัท..." oninput="filterCompanyDropdown('set')" onfocus="showCompanyDropdown('set')">
+        <div id="setCompanyDropdown" class="dropdown-list hidden"></div>
+       </div>
+       <div>
+        <label class="block text-xs text-slate-700 mb-1.5 font-semibold tracking-wide">ชื่อรอบ</label>
+        <input type="text" id="setRoundName" class="input-dark rounded-lg px-3 py-2 w-full text-xs" placeholder="อัตโนมัติจากวันที่กำหนดส่ง" readonly>
+       </div>
+       <div>
+        <label class="block text-xs text-slate-700 mb-1.5 font-semibold tracking-wide">กำหนดส่งรอบที่ 1</label>
+        <input type="date" id="setDeadline1" class="input-dark rounded-lg px-3 py-2 w-full text-xs" onchange="autoUpdateRoundName()">
+       </div>
+       <div>
+        <label class="block text-xs text-slate-700 mb-1.5 font-semibold tracking-wide">กำหนดส่งรอบที่ 2 (ล่าช้า)</label>
+        <input type="date" id="setDeadline2" class="input-dark rounded-lg px-3 py-2 w-full text-xs" onchange="autoUpdateRoundName()">
+       </div>
+      </div>
+      <button onclick="saveRound()" id="roundSaveBtn" class="btn-primary text-white px-6 py-2 rounded-lg text-sm font-semibold">บันทึกรอบเอกสาร</button>
+     </div>
+
+     <!-- Round History -->
+     <div class="card-glass rounded-lg p-4 mb-4">
+      <h3 class="text-xs font-bold text-slate-800 mb-2">รอบเอกสารที่กำหนด</h3>
+      <div id="roundHistory" class="space-y-1.5"></div>
+      <p id="roundEmpty" class="text-gray-500 text-center py-4 hidden text-xs">ยังไม่มีรอบเอกสาร</p>
+     </div>
+
+     <!-- Company Management -->
+     <div class="card-glass rounded-lg p-4 mb-4">
+      <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><i data-lucide="building-2" class="w-4 h-4 text-blue-500"></i>จัดการบริษัทลูกค้า</h3>
+      <div class="flex gap-2 mb-3">
+       <input type="text" id="newCompanyName" class="input-dark rounded-lg px-3 py-2 flex-1 text-xs" placeholder="ชื่อบริษัทใหม่...">
+       <button onclick="addCompany()" id="addCompBtn" class="btn-primary text-white px-4 py-2 rounded-lg text-sm font-semibold">เพิ่ม</button>
+      </div>
+      <div id="companyList" class="space-y-1.5"></div>
+      <p id="companyEmpty" class="text-slate-700 text-center py-4 hidden text-xs font-medium">ยังไม่มีบริษัทลูกค้า</p>
+     </div>
+
+     <!-- Discord Webhook -->
+     <div class="card-glass rounded-lg p-4 mb-4">
+      <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><i data-lucide="bell" class="w-4 h-4 text-cyan-500"></i>แจ้งเตือน Discord</h3>
+      <div class="mb-3">
+       <label class="block text-xs text-slate-700 mb-1.5 font-semibold tracking-wide">Discord Webhook URL</label>
+       <input type="text" id="discordWebhook" class="input-dark rounded-lg px-3 py-2 w-full text-xs" placeholder="https://discord.com/api/webhooks/...">
+      </div>
+      <div class="flex gap-2 flex-wrap">
+       <button onclick="saveWebhook()" class="btn-primary text-white px-4 py-2 rounded-lg text-sm font-semibold">บันทึก</button>
+       <button onclick="testWebhook()" class="border-2 border-cyan-400 text-cyan-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-cyan-400/10 transition-all">ทดสอบ</button>
+       <button onclick="showDiscordExample()" class="border-2 border-indigo-400 text-indigo-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-400/10 transition-all flex items-center gap-2"><i data-lucide="eye" class="w-4 h-4"></i>ตัวอย่าง</button>
+       <button onclick="checkAndNotify()" class="border-2 border-amber-500 text-amber-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-500/10 transition-all">ตรวจสอบ</button>
+      </div>
+     </div>
+
+     <!-- Admin Section (hidden by default) -->
+     <div class="card-glass rounded-lg p-4">
+      <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleAdminSection()">
+       <h3 class="text-sm font-bold text-slate-400 flex items-center gap-2">
+        <i data-lucide="lock" class="w-4 h-4 text-slate-400"></i>
+        <span class="text-slate-400 text-xs tracking-widest">● ● ●</span>
+       </h3>
+       <i data-lucide="chevron-down" class="w-4 h-4 text-slate-300" id="adminChevron"></i>
+      </div>
+      <!-- PIN prompt -->
+      <div id="adminPinPrompt" class="hidden mt-3">
+       <div class="flex gap-2">
+        <input type="password" id="adminPinInput" class="input-dark rounded-lg px-3 py-2 flex-1 text-xs" placeholder="รหัสผ่าน" maxlength="20" onkeydown="if(event.key==='Enter') checkAdminPin()">
+        <button onclick="checkAdminPin()" class="btn-primary text-white px-4 py-2 rounded-lg text-sm font-semibold">เข้า</button>
+       </div>
+       <p id="adminPinError" class="text-red-500 text-xs mt-1 hidden">รหัสผ่านไม่ถูกต้อง</p>
+      </div>
+      <!-- Admin content (Apps Script URL) -->
+      <div id="adminContent" class="hidden mt-3">
+       <div class="border-t border-slate-100 pt-3">
+        <h4 class="text-sm font-bold text-blue-800 mb-2 flex items-center gap-2"><i data-lucide="link" class="w-4 h-4 text-blue-600"></i>Google Apps Script URL</h4>
+        <p class="text-xs text-blue-600 mb-3">URL ของ Google Apps Script Web App ที่ Deploy แล้ว</p>
+        <div class="flex gap-2">
+         <input type="text" id="appsScriptUrl" class="input-dark rounded-lg px-3 py-2 flex-1 text-xs" placeholder="https://script.google.com/macros/s/.../exec">
+         <button onclick="saveAppsScriptUrl()" class="btn-primary text-white px-4 py-2 rounded-lg text-sm font-semibold">บันทึก</button>
+         <button onclick="testConnection()" class="border-2 border-blue-400 text-blue-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-all">ทดสอบ</button>
+        </div>
+        <button onclick="lockAdminSection()" class="mt-3 text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"><i data-lucide="lock" class="w-3 h-3"></i>ล็อค</button>
+       </div>
+      </div>
+     </div>
+    </div>
+   </main>
+  </div>
+
+  <!-- Confirm Dialog Template -->
+  <div id="confirmDialog" class="confirm-overlay hidden">
+   <div class="card-glass rounded-3xl p-8 max-w-sm mx-4 bg-white">
+    <p id="confirmMsg" class="text-gray-800 mb-6 text-lg"></p>
+    <div class="flex gap-3 justify-end">
+     <button onclick="closeConfirm()" class="px-6 py-3 rounded-xl text-base text-gray-600 hover:bg-gray-100 transition-all font-semibold">ยกเลิก</button>
+     <button id="confirmOkBtn" class="btn-danger text-white px-6 py-3 rounded-xl text-base">ยืนยัน</button>
+    </div>
+   </div>
+  </div>
+
+  <script>
+// ============================================================
+// CONFIG - ใส่ URL ของ Google Apps Script ที่นี่
+// หรือตั้งค่าผ่านหน้า "การตั้งค่า" ในแอป
+// ============================================================
+let APPS_SCRIPT_URL = localStorage.getItem('appsScriptUrl') || 'https://script.google.com/macros/s/AKfycbwPtbULKrXlHuSE6WCSIfOSrWZOUsvG_vJ_uhLIqiD6mpOk9crFeJn7HZrN2kW_kmgQUg/exec';
+
+// ========== DATA ==========
+const STAFF = ['พีชน','นุ๊ก','โอ๋','แก้ม','เมย์','ออม','ยุ้ย','ต้า','ฝน','ออ','เค้ก','น้องเค้ก','เฟิร์ช','ฟาง','นซ์','ตาล'];
+const DOC_TYPES = [
+  {key:'income', label:'เอกสารรายได้'},
+  {key:'expense', label:'เอกสารค่าใช้จ่าย'},
+  {key:'withholding', label:'ใบหักภาษี ณ ที่จ่าย'},
+  {key:'statement', label:'Statement'},
+  {key:'cert_receipt', label:'ใบรับรองแทนใบเสร็จ'},
+  {key:'receipt', label:'ใบเสร็จรับเงิน'},
+  {key:'import', label:'ใบขนสินค้าเข้า'},
+  {key:'customs', label:'ใบเสร็จรับเงินกรมศุลกากร'},
+  {key:'export', label:'ใบขนสินค้าออก'},
+  {key:'shopee', label:'Report Shopee'},
+  {key:'lazada', label:'Report Lazada'},
+  {key:'tiktok', label:'Report TikTok Shop'}
+];
+
+let allData = [];
+let companies = [];
+let rounds = [];
+let receives = [];
+let checks = [];
+let webhookUrl = '';
+let confirmCallback = null;
+
+// ========== APPS SCRIPT API ==========
+async function apiGet() {
+  if (!APPS_SCRIPT_URL) return { ok: false, data: [] };
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, { method: 'GET' });
+    const json = await res.json();
+    return json;
+  } catch(e) {
+    console.error('GET error', e);
+    return { ok: false, data: [] };
+  }
+}
+
+async function apiPost(action, record) {
+  if (!APPS_SCRIPT_URL) { showToast('กรุณาตั้งค่า Apps Script URL ก่อน', 'error'); return { ok: false }; }
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action, record })
+    });
+    const json = await res.json();
+    return json;
+  } catch(e) {
+    console.error('POST error', e);
+    return { ok: false };
+  }
+}
+
+async function loadData() {
+  const result = await apiGet();
+  if (result.ok) {
+    processData(result.data);
+  }
+}
+
+function processData(data) {
+  allData = data.map(d => ({ ...d, __backendId: d.id }));
+  companies = allData.filter(d => d.type === 'company');
+  rounds = allData.filter(d => d.type === 'round');
+  receives = allData.filter(d => d.type === 'receive');
+  checks = allData.filter(d => d.type === 'check');
+  const wh = allData.find(d => d.type === 'webhook');
+  webhookUrl = wh ? wh.discord_webhook : '';
+  document.getElementById('discordWebhook').value = webhookUrl;
+
+  renderCompanyList();
+  renderRoundHistory();
+  renderRecvHistory();
+  renderCheckHistory();
+  renderDashboard();
+  populateRoundSelect();
+  populateRoundFilter();
+}
+
+async function createRecord(record) {
+  const result = await apiPost('create', record);
+  if (result.ok) {
+    await loadData();
+  }
+  return result;
+}
+
+async function updateRecord(record) {
+  const result = await apiPost('update', record);
+  if (result.ok) {
+    await loadData();
+  }
+  return result;
+}
+
+async function deleteRecord(record) {
+  const result = await apiPost('delete', { id: record.id || record.__backendId });
+  if (result.ok) {
+    await loadData();
+  }
+  return result;
+}
+
+// ========== APPS SCRIPT URL SETTINGS ==========
+function saveAppsScriptUrl() {
+  const url = document.getElementById('appsScriptUrl').value.trim();
+  if (!url) { showToast('กรุณาใส่ URL', 'error'); return; }
+  APPS_SCRIPT_URL = url;
+  localStorage.setItem('appsScriptUrl', url);
+  showToast('บันทึก URL สำเร็จ กำลังโหลดข้อมูล...');
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  loadData().then(() => {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  });
+}
+
+async function testConnection() {
+  if (!APPS_SCRIPT_URL) { showToast('กรุณาใส่ URL ก่อน', 'error'); return; }
+  showToast('กำลังทดสอบ...', 'info');
+  const result = await apiGet();
+  if (result.ok) {
+    showToast(`เชื่อมต่อสำเร็จ! พบข้อมูล ${result.data.length} รายการ`);
+  } else {
+    showToast('เชื่อมต่อไม่สำเร็จ กรุณาตรวจสอบ URL', 'error');
+  }
+}
+
+// ========== TABS ==========
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.getElementById('tab-' + tab).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
+  const active = document.querySelector(`[data-tab="${tab}"]`);
+  active.classList.add('tab-active');
+}
+
+// ========== TOAST ==========
+function showToast(msg, type='success') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type==='success'?'bg-green-600':type==='error'?'bg-red-600':'bg-amber-600'}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ========== CONFIRM ==========
+function showConfirm(msg, cb) {
+  document.getElementById('confirmMsg').textContent = msg;
+  document.getElementById('confirmDialog').classList.remove('hidden');
+  confirmCallback = cb;
+  document.getElementById('confirmOkBtn').onclick = () => { closeConfirm(); if(confirmCallback) confirmCallback(); };
+}
+function closeConfirm() { document.getElementById('confirmDialog').classList.add('hidden'); confirmCallback=null; }
+
+// ========== COMPANY DROPDOWN ==========
+function getCompanyNames() { return companies.map(c => c.company_name).sort(); }
+
+function showCompanyDropdown(prefix) {
+  filterCompanyDropdown(prefix);
+  document.getElementById(prefix+'CompanyDropdown').classList.remove('hidden');
+}
+function filterCompanyDropdown(prefix) {
+  const input = document.getElementById(prefix+'CompanyInput').value.toLowerCase();
+  const dd = document.getElementById(prefix+'CompanyDropdown');
+  const names = getCompanyNames().filter(n => n.toLowerCase().includes(input));
+  dd.innerHTML = names.map(n => `<div class="dropdown-item" onclick="selectCompany('${prefix}','${n.replace(/'/g,"\\'")}')">${n}</div>`).join('');
+  if(names.length) dd.classList.remove('hidden'); else dd.classList.add('hidden');
+}
+function selectCompany(prefix, name) {
+  document.getElementById(prefix+'CompanyInput').value = name;
+  document.getElementById(prefix+'CompanyDropdown').classList.add('hidden');
+}
+document.addEventListener('click', e => {
+  ['recv','check','set'].forEach(p => {
+    const dd = document.getElementById(p+'CompanyDropdown');
+    const inp = document.getElementById(p+'CompanyInput');
+    if(dd && inp && !dd.contains(e.target) && e.target !== inp) dd.classList.add('hidden');
+  });
+});
+
+// ========== POPULATE ==========
+function populateStaff(selectId) {
+  const sel = document.getElementById(selectId);
+  sel.innerHTML = '<option value="">-- เลือก --</option>' + STAFF.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function populateRoundSelect() {
+  const sel = document.getElementById('checkRound');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">-- เลือกรอบ --</option>' + rounds.map(r => `<option value="${r.__backendId}">${r.round_name} - ${r.company_name}</option>`).join('');
+}
+
+function populateRoundFilter() {
+  const sel = document.getElementById('dashRoundFilter');
+  if(!sel) return;
+  const roundNames = new Set();
+  rounds.forEach(r => { roundNames.add(r.round_name); });
+  const sortedRounds = [...roundNames].sort();
+  let html = '<option value="">-- เลือกรอบเอกสาร --</option>';
+  if(sortedRounds.length > 0) {
+    html += sortedRounds.map(rn => `<option value="ROUND:${rn}">${rn}</option>`).join('');
+  }
+  sel.innerHTML = html;
+}
+
+// ========== ADMIN SECTION ==========
+const ADMIN_PIN = 'alternatex2024';
+let adminUnlocked = false;
+
+function toggleAdminSection() {
+  if (adminUnlocked) {
+    // already open — just toggle visibility
+    const content = document.getElementById('adminContent');
+    const pin = document.getElementById('adminPinPrompt');
+    if (content.classList.contains('hidden')) {
+      content.classList.remove('hidden');
+      pin.classList.add('hidden');
+    } else {
+      lockAdminSection();
+    }
+    return;
+  }
+  const pinPrompt = document.getElementById('adminPinPrompt');
+  const chevron = document.getElementById('adminChevron');
+  if (pinPrompt.classList.contains('hidden')) {
+    pinPrompt.classList.remove('hidden');
+    chevron.style.transform = 'rotate(180deg)';
+    setTimeout(() => document.getElementById('adminPinInput').focus(), 100);
+  } else {
+    pinPrompt.classList.add('hidden');
+    chevron.style.transform = '';
+  }
+}
+
+function checkAdminPin() {
+  const val = document.getElementById('adminPinInput').value;
+  const errEl = document.getElementById('adminPinError');
+  if (val === ADMIN_PIN) {
+    adminUnlocked = true;
+    document.getElementById('adminPinPrompt').classList.add('hidden');
+    document.getElementById('adminContent').classList.remove('hidden');
+    document.getElementById('adminPinInput').value = '';
+    errEl.classList.add('hidden');
+    if (APPS_SCRIPT_URL) document.getElementById('appsScriptUrl').value = APPS_SCRIPT_URL;
+    lucide.createIcons();
+  } else {
+    errEl.classList.remove('hidden');
+    document.getElementById('adminPinInput').value = '';
+  }
+}
+
+function lockAdminSection() {
+  adminUnlocked = false;
+  document.getElementById('adminContent').classList.add('hidden');
+  document.getElementById('adminPinPrompt').classList.add('hidden');
+  document.getElementById('adminChevron').style.transform = '';
+  lucide.createIcons();
+}
+
+// ========== INIT UI ==========
+function initUI() {
+  populateStaff('recvPerson');
+  populateStaff('checkPerson');
+  document.getElementById('recvDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('checkDate').value = new Date().toISOString().split('T')[0];
+  if (APPS_SCRIPT_URL) {
+    document.getElementById('appsScriptUrl').value = APPS_SCRIPT_URL;
+  }
+  updateDateTime();
+  setInterval(updateDateTime, 60000);
+}
+
+function updateDateTime() {
+  const now = new Date();
+  document.getElementById('currentDateTime').textContent = now.toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+
+// ========== SAVE RECEIVE ==========
+async function saveReceive() {
+  const company = document.getElementById('recvCompanyInput').value.trim();
+  const date = document.getElementById('recvDate').value;
+  const person = document.getElementById('recvPerson').value;
+  if(!company || !date || !person) { showToast('กรุณากรอกข้อมูลให้ครบ','error'); return; }
+
+  const btn = document.getElementById('recvSaveBtn');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+
+  const record = { type:'receive', company_name:company, date, person, status:'received' };
+  const r = await createRecord(record);
+  btn.disabled = false; btn.textContent = 'บันทึกรับเอกสาร';
+  if(r.ok) { showToast('บันทึกสำเร็จ'); resetRecvForm(); } else showToast('เกิดข้อผิดพลาด','error');
+}
+function resetRecvForm() {
+  document.getElementById('recvCompanyInput').value = '';
+  document.getElementById('recvPerson').value = '';
+}
+
+// ========== SAVE CHECK ==========
+async function saveCheck() {
+  const company = document.getElementById('checkCompanyInput').value.trim();
+  const date = document.getElementById('checkDate').value;
+  const person = document.getElementById('checkPerson').value;
+  if(!company || !date || !person) { showToast('กรุณากรอกข้อมูลให้ครบ','error'); return; }
+
+  const btn = document.getElementById('checkSaveBtn');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+
+  const record = {
+    type:'check', company_name:company, check_date:date, checked_by:person,
+    round_name: '',
+    month_year: date.substring(0,7)
+  };
+
+  DOC_TYPES.forEach(d => {
+    const selected = document.querySelector(`input[name="doc_${d.key}"]:checked`);
+    if(selected) {
+      if(selected.value === 'yes') record['doc_' + d.key] = 'yes';
+      else if(selected.value === 'missing') record['doc_' + d.key] = 'missing';
+      else if(selected.value === 'no') record['no_doc_' + d.key] = 'yes';
+    }
+  });
+
+  const r = await createRecord(record);
+  btn.disabled = false; btn.textContent = 'บันทึกตรวจเช็ค';
+  if(r.ok) { showToast('บันทึกสำเร็จ'); resetCheckForm(); document.getElementById('checkDocFields').innerHTML = ''; } else showToast('เกิดข้อผิดพลาด','error');
+}
+function resetCheckForm() {
+  document.getElementById('checkCompanyInput').value = '';
+  document.getElementById('checkPerson').value = '';
+}
+
+// ========== BUILD CHECK DOC LIST ==========
+function buildCheckDocList() {
+  const fieldsDiv = document.getElementById('checkDocFields');
+  fieldsDiv.innerHTML = `
+    <div class="col-span-full">
+      <div class="bg-slate-100 rounded-xl p-4 border border-slate-300 mb-4">
+        <p class="text-sm text-slate-700 font-medium">เลือกสถานะเอกสารของบริษัท (สามารถเลือกได้เพียงหนึ่งสถานะต่อเอกสาร)</p>
+      </div>
+      <div class="space-y-3">
+        ${DOC_TYPES.map(d => `
+          <div class="bg-white hover:bg-slate-50 rounded-lg p-3 border border-slate-200 transition-colors flex items-center justify-between">
+            <label class="text-sm font-medium text-slate-800 cursor-pointer flex-1">${d.label}</label>
+            <div class="flex gap-4 items-center">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="doc_${d.key}" value="yes" class="w-4 h-4 accent-green-500">
+                <span class="text-xs text-green-700 font-semibold">ได้รับ</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="doc_${d.key}" value="missing" class="w-4 h-4 accent-red-500">
+                <span class="text-xs text-red-700 font-semibold">ไม่ได้รับ</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="doc_${d.key}" value="no" class="w-4 h-4 accent-amber-500">
+                <span class="text-xs text-amber-700 font-semibold">ไม่มี</span>
+              </label>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ========== SAVE ROUND ==========
+let editingRoundId = null;
+
+function dateToThaiMonth(dateStr) {
+  if(!dateStr) return '';
+  const date = new Date(dateStr + 'T00:00:00');
+  const months = ['ม.ค', 'ก.พ', 'มี.ค', 'เม.ย', 'พ.ค', 'มิ.ย', 'ก.ค', 'ส.ค', 'ก.ย', 'ต.ค', 'พ.ย', 'ธ.ค'];
+  let prevMonth = date.getMonth() - 1;
+  let year = date.getFullYear();
+  if(prevMonth < 0) { prevMonth = 11; year -= 1; }
+  const month = months[prevMonth];
+  const thaiYear = (year + 543).toString().slice(-2);
+  return `เอกสารรอบเดือน ${month} ${thaiYear}`;
+}
+
+function autoUpdateRoundName() {
+  const d1 = document.getElementById('setDeadline1').value;
+  const d2 = document.getElementById('setDeadline2').value;
+  const dateToUse = d1 || d2;
+  if(dateToUse) {
+    document.getElementById('setRoundName').value = dateToThaiMonth(dateToUse);
+  }
+}
+
+function normalizeRoundName(name) {
+  return name.trim().replace(/\s+/g,' ').replace(/\.+\s*/g,' ').replace(/\s+/g,' ').toLowerCase();
+}
+
+async function saveRound() {
+  const company = document.getElementById('setCompanyInput').value.trim();
+  const name = document.getElementById('setRoundName').value.trim();
+  const d1 = document.getElementById('setDeadline1').value;
+  const d2 = document.getElementById('setDeadline2').value;
+  if(!company || !name || (!d1 && !d2)) { showToast('กรุณากรอกข้อมูลให้ครบ','error'); return; }
+
+  const normalizedNewRound = normalizeRoundName(name);
+
+  if(!editingRoundId) {
+    const duplicate = rounds.find(r => r.company_name === company && normalizeRoundName(r.round_name) === normalizedNewRound);
+    if(duplicate) {
+      document.getElementById('confirmMsg').innerHTML = `
+        <div class="text-gray-800 mb-4">
+          <p class="font-bold mb-3 text-lg">⚠️ บริษัท "<strong>${company}</strong>" มีรอบ "<strong>${duplicate.round_name}</strong>" อยู่แล้ว</p>
+          <p class="text-base text-gray-600 mt-3">คุณต้องการแก้ไขรอบเดิม หรือสร้างรอบใหม่?</p>
+        </div>
+      `;
+      const confirmContainer = document.getElementById('confirmDialog').querySelector('div');
+      const buttonsDiv = confirmContainer.querySelector('.flex.gap-3');
+      buttonsDiv.innerHTML = `
+        <button onclick="closeConfirm()" class="px-6 py-3 rounded-xl text-base text-gray-700 hover:bg-gray-100 transition-all font-semibold">ยกเลิก</button>
+        <button onclick="editRound('${duplicate.__backendId}'); closeConfirm();" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl text-base font-bold">แก้ไขรอบเดิม</button>
+        <button onclick="proceedCreateNewRound(); closeConfirm();" class="btn-primary text-white px-6 py-3 rounded-xl text-base font-bold">สร้างรอบใหม่</button>
+      `;
+      document.getElementById('confirmDialog').classList.remove('hidden');
+      return;
+    }
+  }
+
+  if(!editingRoundId && d1) {
+    const existingD1 = rounds.find(r => r.company_name === company && r.deadline_round1 === d1);
+    if(existingD1) {
+      showToast(`บริษัท "${company}" มีกำหนดส่งรอบที่ 1 วันที่ ${d1} ในรอบ "${existingD1.round_name}" อยู่แล้ว`, 'error');
+      return;
+    }
+  }
+
+  const btn = document.getElementById('roundSaveBtn');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+
+  if(editingRoundId) {
+    const existing = rounds.find(r => r.__backendId === editingRoundId);
+    if(existing) {
+      const r = await updateRecord({ ...existing, id: existing.__backendId, company_name: company, round_name: name, deadline_round1: d1||'', deadline_round2_late: d2||'' });
+      btn.disabled = false; btn.textContent = 'บันทึกรอบเอกสาร';
+      if(r.ok) { showToast('อัปเดตรอบสำเร็จ'); resetRoundForm(); editingRoundId = null; } else showToast('เกิดข้อผิดพลาด','error');
+    }
+  } else {
+    const r = await createRecord({ type:'round', company_name:company, round_name:name, deadline_round1:d1||'', deadline_round2_late:d2||'' });
+    btn.disabled = false; btn.textContent = 'บันทึกรอบเอกสาร';
+    if(r.ok) { showToast('บันทึกรอบสำเร็จ'); resetRoundForm(); } else showToast('เกิดข้อผิดพลาด','error');
+  }
+}
+
+function resetRoundForm() {
+  document.getElementById('setCompanyInput').value='';
+  document.getElementById('setRoundName').value='';
+  document.getElementById('setDeadline1').value='';
+  document.getElementById('setDeadline2').value='';
+  editingRoundId = null;
+  document.getElementById('roundSaveBtn').textContent = 'บันทึกรอบเอกสาร';
+}
+
+async function proceedCreateNewRound() {
+  const company = document.getElementById('setCompanyInput').value.trim();
+  const name = document.getElementById('setRoundName').value.trim();
+  const d1 = document.getElementById('setDeadline1').value;
+  const d2 = document.getElementById('setDeadline2').value;
+  const btn = document.getElementById('roundSaveBtn');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  const r = await createRecord({ type:'round', company_name:company, round_name:name, deadline_round1:d1||'', deadline_round2_late:d2||'' });
+  btn.disabled = false; btn.textContent = 'บันทึกรอบเอกสาร';
+  if(r.ok) { showToast('บันทึกรอบสำเร็จ'); resetRoundForm(); } else showToast('เกิดข้อผิดพลาด','error');
+}
+
+function editRound(id) {
+  const rec = rounds.find(r => r.__backendId === id);
+  if(!rec) return;
+  editingRoundId = id;
+  document.getElementById('setCompanyInput').value = rec.company_name;
+  document.getElementById('setRoundName').value = rec.round_name;
+  document.getElementById('setDeadline1').value = rec.deadline_round1 || '';
+  document.getElementById('setDeadline2').value = rec.deadline_round2_late || '';
+  document.getElementById('roundSaveBtn').textContent = 'อัปเดตรอบเอกสาร';
+  window.scrollTo(0, 0);
+}
+
+// ========== COMPANY MANAGEMENT ==========
+async function addCompany() {
+  const name = document.getElementById('newCompanyName').value.trim();
+  if(!name) { showToast('กรุณากรอกชื่อบริษัท','error'); return; }
+  if(companies.find(c => c.company_name === name)) { showToast('บริษัทนี้มีอยู่แล้ว','error'); return; }
+
+  const btn = document.getElementById('addCompBtn');
+  btn.disabled = true; btn.textContent = '...';
+  const r = await createRecord({ type:'company', company_name:name });
+  btn.disabled = false; btn.textContent = 'เพิ่ม';
+  if(r.ok) { showToast('เพิ่มบริษัทสำเร็จ'); document.getElementById('newCompanyName').value=''; }
+  else showToast('เกิดข้อผิดพลาด','error');
+}
+
+async function deleteCompany(id) {
+  const rec = companies.find(c => c.__backendId === id);
+  if(!rec) return;
+  showConfirm(`ลบ "${rec.company_name}" ?`, async () => {
+    const r = await deleteRecord(rec);
+    if(r.ok) showToast('ลบสำเร็จ'); else showToast('เกิดข้อผิดพลาด','error');
+  });
+}
+
+// ========== WEBHOOK ==========
+async function saveWebhook() {
+  const url = document.getElementById('discordWebhook').value.trim();
+  const existing = allData.find(d => d.type === 'webhook');
+  if(existing) {
+    const r = await updateRecord({...existing, id: existing.__backendId, discord_webhook:url});
+    if(r.ok) showToast('บันทึก Webhook สำเร็จ'); else showToast('ผิดพลาด','error');
+  } else {
+    const r = await createRecord({type:'webhook', discord_webhook:url});
+    if(r.ok) showToast('บันทึก Webhook สำเร็จ'); else showToast('ผิดพลาด','error');
+  }
+}
+
+async function testWebhook() {
+  const url = document.getElementById('discordWebhook').value.trim();
+  if(!url) { showToast('กรุณากรอก Webhook URL','error'); return; }
+  try {
+    await fetch(url, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({content:'🔔 ทดสอบแจ้งเตือนจากระบบติดตามเอกสาร - Alternatex'})
+    });
+    showToast('ส่งข้อความทดสอบแล้ว');
+  } catch(e) { showToast('ส่งไม่สำเร็จ (อาจถูกบล็อกจาก sandbox)','error'); }
+}
+
+async function checkAndNotify() {
+  const url = document.getElementById('discordWebhook').value.trim();
+  if(!url) { showToast('กรุณากรอก Webhook URL','error'); return; }
+  const today = new Date().toISOString().split('T')[0];
+  let messages = [];
+  rounds.forEach(round => {
+    const isOverD2 = round.deadline_round2_late && today > round.deadline_round2_late;
+    const isOverD1 = round.deadline_round1 && today > round.deadline_round1;
+    if(isOverD2) messages.push(`🔴 **${round.company_name}** - ${round.round_name}\nเลยกำหนดรอบที่ 2!`);
+    else if(isOverD1 && !isOverD2) messages.push(`🟡 **${round.company_name}** - ${round.round_name}\nเลยกำหนดรอบที่ 1!`);
+  });
+  if(messages.length === 0) { showToast('ไม่มีการเลยกำหนด','success'); return; }
+  try {
+    const content = `📋 **แจ้งเตือนเอกสาร - ${new Date().toLocaleDateString('th-TH')}**\n\n${messages.join('\n\n')}`;
+    await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content}) });
+    showToast(`ส่งแจ้งเตือน ${messages.length} รายการแล้ว`);
+  } catch(e) { showToast('ส่งไม่สำเร็จ','error'); }
+}
+
+function showDiscordExample() {
+  const exampleMsg = `📋 **แจ้งเตือนเอกสาร - 15 มกราคม 2567**\n\n🔴 **บริษัท อัลเทอร์เนทีฟส์ จำกัด** - เอกสารรอบเดือน ธ.ค 66\nเลยกำหนดรอบที่ 2 (ล่าช้า)!\nเอกสารที่ยังไม่ได้รับ: เอกสารรายได้, ใบหักภาษี ณ ที่จ่าย, ใบเสร็จรับเงินกรมศุลกากร\n\n🟡 **บริษัท คิวเช่นนี่ ฟู้ดส์ จำกัด** - เอกสารรอบเดือน ม.ค 67\nเลยกำหนดรอบที่ 1!\nเอกสารที่ยังไม่ได้รับ: เอกสารค่าใช้จ่าย, ใบรับรองแทนใบเสร็จ`;
+  const modalHtml = `
+    <div class="confirm-overlay" style="background: rgba(0,0,0,0.7);">
+      <div class="card-glass rounded-2xl p-6 max-w-2xl mx-4 bg-white max-h-96 overflow-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i data-lucide="message-circle" class="w-5 h-5 text-blue-600"></i>ตัวอย่างข้อความ Discord</h3>
+          <button onclick="this.closest('.confirm-overlay').remove()" class="text-gray-500 hover:text-gray-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="bg-gradient-to-r from-indigo-900 to-indigo-950 rounded-lg p-4 text-white font-mono text-sm mb-4 whitespace-pre-wrap border-l-4 border-indigo-400">${exampleMsg}</div>
+        <button onclick="this.closest('.confirm-overlay').remove()" class="w-full btn-primary text-white px-4 py-2 rounded-lg text-sm font-semibold">ปิด</button>
+      </div>
+    </div>
+  `;
+  const modal = document.createElement('div');
+  modal.innerHTML = modalHtml;
+  document.body.appendChild(modal);
+  lucide.createIcons();
+}
+
+// ========== RENDER ==========
+function renderCompanyList() {
+  const c = document.getElementById('companyList');
+  const e = document.getElementById('companyEmpty');
+  if(!companies.length) { c.innerHTML=''; e.classList.remove('hidden'); return; }
+  e.classList.add('hidden');
+  c.innerHTML = companies.sort((a,b) => a.company_name.localeCompare(b.company_name,'th')).map(co => `
+    <div class="flex items-center justify-between bg-white/80 rounded-lg px-4 py-3 border border-blue-200 hover:bg-white hover:shadow-md transition-all">
+      <span class="text-base font-semibold text-slate-800"><i data-lucide="building" class="w-5 h-5 inline mr-2 text-blue-500"></i>${co.company_name}</span>
+      <button onclick="deleteCompany('${co.__backendId}')" class="text-red-600 hover:text-red-700 hover:bg-red-100 px-3 py-1 rounded-lg text-sm font-semibold transition-all">ลบ</button>
+    </div>
+  `).join('');
+  lucide.createIcons();
+}
+
+function renderRoundHistory() {
+  const c = document.getElementById('roundHistory');
+  const e = document.getElementById('roundEmpty');
+  if(!rounds.length) { c.innerHTML=''; e.classList.remove('hidden'); return; }
+  e.classList.add('hidden');
+  c.innerHTML = rounds.map(r => `
+    <div class="bg-gradient-to-r from-blue-50 to-blue-25 rounded-lg px-5 py-3 flex items-center justify-between gap-3 hover:shadow-md transition-shadow border border-blue-100">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 whitespace-nowrap overflow-x-auto">
+          <span class="text-xs font-bold text-gray-900 flex-shrink-0">${r.round_name}</span>
+          <span class="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded flex-shrink-0">${r.company_name}</span>
+          ${r.deadline_round1 ? `<span class="text-xs text-blue-700 bg-blue-100 px-2 py-0.5 rounded-lg font-semibold flex-shrink-0">รอบ1: ${r.deadline_round1}</span>` : ''}
+          ${r.deadline_round2_late ? `<span class="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-lg font-semibold flex-shrink-0">รอบ2: ${r.deadline_round2_late}</span>` : ''}
+        </div>
+      </div>
+      <div class="flex gap-2 flex-shrink-0">
+        <button onclick="editRound('${r.__backendId}')" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors">
+          <i data-lucide="edit-3" class="w-4 h-4"></i>แก้ไข
+        </button>
+      </div>
+    </div>
+  `).join('');
+  lucide.createIcons();
+}
+
+function renderRecvHistory() {
+  const c = document.getElementById('recvHistory');
+  const e = document.getElementById('recvEmpty');
+  if(!receives.length) { c.innerHTML=''; e.classList.remove('hidden'); return; }
+  e.classList.add('hidden');
+  c.innerHTML = receives.slice().reverse().slice(0,20).map(r => {
+    return `
+    <div class="bg-white rounded-lg px-5 py-4 border border-gray-200">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-base font-bold text-gray-900">${r.company_name}</span>
+        <span class="text-sm text-gray-600 font-medium">${r.date} | ${r.person}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCheckHistory() {
+  const c = document.getElementById('checkHistory');
+  const e = document.getElementById('checkEmpty');
+  if(!checks.length) { c.innerHTML=''; e.classList.remove('hidden'); return; }
+  e.classList.add('hidden');
+  c.innerHTML = checks.slice().reverse().slice(0,20).map(r => {
+    const received = DOC_TYPES.filter(d => r['doc_'+d.key]==='yes').map(d => d.label);
+    const notReceived = DOC_TYPES.filter(d => r['doc_'+d.key]==='missing').map(d => d.label);
+    const na = DOC_TYPES.filter(d => r['no_doc_'+d.key]==='yes').map(d => d.label);
+    const unknown = DOC_TYPES.filter(d => r['doc_'+d.key] !== 'yes' && r['doc_'+d.key] !== 'missing' && r['no_doc_'+d.key] !== 'yes').map(d => d.label);
+    return `
+    <div class="bg-white rounded-lg px-5 py-4 border border-gray-200">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-base font-bold text-gray-900">${r.company_name}</span>
+        <span class="text-sm text-gray-600 font-medium">${r.check_date} | ${r.checked_by}${r.round_name ? ' | '+r.round_name : ''}</span>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        ${received.map(d => `<span class="doc-chip doc-received">${d}</span>`).join('')}
+        ${notReceived.map(d => `<span class="doc-chip doc-missing">${d} (ไม่ได้รับ)</span>`).join('')}
+        ${na.map(d => `<span class="doc-chip doc-na">${d} (ไม่มี)</span>`).join('')}
+        ${unknown.map(d => `<span class="doc-chip doc-missing">${d}</span>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ========== DASHBOARD ==========
+function downloadCheckReport() {
+  if(checks.length === 0) { showToast('ไม่มีข้อมูลการตรวจเช็ค','error'); return; }
+  const headers = ['วันที่ตรวจเช็ค', 'บริษัท', 'ผู้ตรวจเช็ค', 'รอบ'];
+  DOC_TYPES.forEach(d => headers.push(d.label));
+  const rows = checks.map(check => {
+    const row = [check.check_date||'', check.company_name||'', check.checked_by||'', check.round_name||''];
+    DOC_TYPES.forEach(d => {
+      if(check['doc_'+d.key]==='yes') row.push('ได้รับ');
+      else if(check['doc_'+d.key]==='missing') row.push('ไม่ได้รับ');
+      else if(check['no_doc_'+d.key]==='yes') row.push('ไม่มี');
+      else row.push('');
+    });
+    return row;
+  });
+  const csv = [headers.map(h=>`"${h}"`).join(','), ...rows.map(r=>r.map(v=>`"${v}"`).join(','))].join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const link = document.createElement('a');
+  link.setAttribute('href', URL.createObjectURL(blob));
+  link.setAttribute('download', `Document_Check_${new Date().toISOString().split('T')[0]}.csv`);
+  link.style.visibility='hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast('ดาวน์โหลด CSV สำเร็จ');
+}
+
+function renderDashboard() {
+  const listEl = document.getElementById('dashCompanyList');
+  const emptyEl = document.getElementById('dashEmpty');
+  const roundFilter = document.getElementById('dashRoundFilter').value || '';
+  const statusFilter = document.getElementById('dashStatusFilter').value || '';
+
+  let filteredRounds = rounds;
+  if(roundFilter.startsWith('ROUND:')) {
+    const selectedRound = roundFilter.substring(6);
+    filteredRounds = rounds.filter(r => r.round_name === selectedRound);
+  }
+
+  const received = [];
+  const notReceived = [];
+  const late = [];
+
+  const allCompanyNames = new Set();
+  filteredRounds.forEach(r => allCompanyNames.add(r.company_name));
+
+  allCompanyNames.forEach(companyName => {
+    const companyRounds = filteredRounds.filter(r => r.company_name === companyName);
+    const companyChecks = checks.filter(c => c.company_name === companyName && (roundFilter === '' || companyRounds.some(r => r.round_name === c.round_name)));
+
+    if(companyChecks.length === 0) {
+      const today = new Date().toISOString().split('T')[0];
+      let hasLateRound = false;
+      companyRounds.forEach(r => { if(r.deadline_round1 && today > r.deadline_round1) hasLateRound = true; });
+      if(hasLateRound) late.push({ company_name: companyName, totalReceived: 0 });
+      else notReceived.push({ company_name: companyName, totalReceived: 0 });
+    } else {
+      const lastCheck = companyChecks[companyChecks.length - 1];
+      const docCount = DOC_TYPES.filter(d => lastCheck['doc_' + d.key] === 'yes').length;
+      const missingCount = DOC_TYPES.filter(d => lastCheck['doc_' + d.key] === 'missing').length;
+      const naCount = DOC_TYPES.filter(d => lastCheck['no_doc_' + d.key] === 'yes').length;
+      if(docCount + naCount === DOC_TYPES.length && missingCount === 0) received.push({ company_name: companyName, totalReceived: docCount });
+      else notReceived.push({ company_name: companyName, totalReceived: docCount });
+    }
+  });
+
+  const receivedCount = received.length;
+  const missingCount = notReceived.length;
+  const lateCount = late.length;
+
+  document.getElementById('dashStats').innerHTML = `
+    <div class="stat-card card-glass rounded-xl p-5 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 shadow-md hover:shadow-lg">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-lg"><i data-lucide="check-circle-2" class="w-7 h-7 text-white"></i></div>
+        <div><p class="text-4xl font-bold text-green-700">${receivedCount}</p><p class="text-sm text-green-600 font-semibold">ได้รับครบ</p></div>
+      </div>
+    </div>
+    <div class="stat-card card-glass rounded-xl p-5 bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-200 shadow-md hover:shadow-lg">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-full bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center flex-shrink-0 shadow-lg"><i data-lucide="inbox" class="w-7 h-7 text-white"></i></div>
+        <div><p class="text-4xl font-bold text-red-700">${missingCount}</p><p class="text-sm text-red-600 font-semibold">ยังไม่ได้รับ</p></div>
+      </div>
+    </div>
+    <div class="stat-card card-glass rounded-xl p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 shadow-md hover:shadow-lg">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center flex-shrink-0 shadow-lg"><i data-lucide="alert-triangle" class="w-7 h-7 text-white"></i></div>
+        <div><p class="text-4xl font-bold text-amber-700">${lateCount}</p><p class="text-sm text-amber-600 font-semibold">ล่าช้า</p></div>
+      </div>
+    </div>
+  `;
+
+  const total = Math.max(receivedCount + missingCount + lateCount, 1);
+  const chartPercents = { received:(receivedCount/total)*100, missing:(missingCount/total)*100, late:(lateCount/total)*100 };
+  document.getElementById('dashChart').innerHTML = `
+    <div class="flex flex-col items-center gap-3 flex-1 max-w-32">
+      <div class="w-24 bg-gradient-to-t from-green-600 via-green-500 to-emerald-400 rounded-t-2xl relative shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center text-white font-bold text-lg drop-shadow-lg" style="height:${Math.max(chartPercents.received,15)}%; min-height:40px"></div>
+      <div class="text-center"><p class="text-sm text-gray-700 font-bold">ได้รับครบ</p><p class="text-3xl font-black text-green-600">${receivedCount}</p></div>
+    </div>
+    <div class="flex flex-col items-center gap-3 flex-1 max-w-32">
+      <div class="w-24 bg-gradient-to-t from-red-600 via-red-500 to-rose-400 rounded-t-2xl relative shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center text-white font-bold text-lg drop-shadow-lg" style="height:${Math.max(chartPercents.missing,15)}%; min-height:40px"></div>
+      <div class="text-center"><p class="text-sm text-gray-700 font-bold">ยังไม่ได้รับ</p><p class="text-3xl font-black text-red-600">${missingCount}</p></div>
+    </div>
+    <div class="flex flex-col items-center gap-3 flex-1 max-w-32">
+      <div class="w-24 bg-gradient-to-t from-amber-600 via-amber-500 to-yellow-400 rounded-t-2xl relative shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center text-white font-bold text-lg drop-shadow-lg" style="height:${Math.max(chartPercents.late,15)}%; min-height:40px"></div>
+      <div class="text-center"><p class="text-sm text-gray-700 font-bold">ล่าช้า</p><p class="text-3xl font-black text-amber-600">${lateCount}</p></div>
+    </div>
+  `;
+
+  // Company List grouped by status
+  function buildGroupHtml(items, colorClass, borderClass, bgClass, badgeClass, badgeBgClass, label, icon, badgeLabel) {
+    if(!items.length) return '';
+    let html = `<div class="mb-4"><div class="flex items-center gap-2 mb-3 pb-2 border-b ${borderClass}">`;
+    html += `<i data-lucide="${icon}" style="width:18px;height:18px" class="${colorClass}"></i>`;
+    html += `<h4 class="text-sm font-bold ${colorClass}">${label}</h4>`;
+    html += `<span class="text-xs ml-auto ${badgeBgClass} px-2 py-0.5 rounded font-bold ${badgeClass}">${items.length} บริษัท</span>`;
+    html += `</div><div class="space-y-2">`;
+    html += items.map(item => `
+      <div class="flex items-start justify-between ${bgClass} rounded px-3 py-2">
+        <span class="text-sm font-bold ${colorClass} block truncate">${item.company_name}</span>
+        <span class="text-xs ${badgeBgClass} ${badgeClass} px-2 py-0.5 rounded ml-2 whitespace-nowrap font-bold">${badgeLabel}</span>
+      </div>`).join('');
+    html += '</div></div>';
+    return html;
+  }
+
+  if(!statusFilter) {
+    let html = '';
+    html += buildGroupHtml(notReceived, 'text-red-700', 'border-red-300', 'bg-red-50 border border-red-200', 'text-red-800', 'bg-red-200', '1. ยังไม่ได้รับ', 'inbox', 'รอการส่ง');
+    html += buildGroupHtml(late, 'text-amber-700', 'border-amber-300', 'bg-amber-50 border border-amber-200', 'text-amber-800', 'bg-amber-200', '2. ล่าช้า', 'alert-circle', 'เลยกำหนด');
+    html += buildGroupHtml(received, 'text-green-700', 'border-green-300', 'bg-green-50 border border-green-200', 'text-green-800', 'bg-green-200', '3. ได้รับเอกสารครบถ้วน', 'check-circle-2', 'ครบแล้ว');
+    emptyEl.classList.add('hidden');
+    listEl.innerHTML = html.length > 0 ? html : '';
+    if(!html.length) { emptyEl.classList.remove('hidden'); listEl.innerHTML=''; }
+  } else if(statusFilter === 'notReceived') {
+    const html = buildGroupHtml(notReceived, 'text-red-700', 'border-red-300', 'bg-red-50 border border-red-200', 'text-red-800', 'bg-red-200', '1. ยังไม่ได้รับ', 'inbox', 'รอการส่ง');
+    if(!html) { emptyEl.classList.remove('hidden'); listEl.innerHTML=''; } else { emptyEl.classList.add('hidden'); listEl.innerHTML=html; }
+  } else if(statusFilter === 'late') {
+    const html = buildGroupHtml(late, 'text-amber-700', 'border-amber-300', 'bg-amber-50 border border-amber-200', 'text-amber-800', 'bg-amber-200', '2. ล่าช้า', 'alert-circle', 'เลยกำหนด');
+    if(!html) { emptyEl.classList.remove('hidden'); listEl.innerHTML=''; } else { emptyEl.classList.add('hidden'); listEl.innerHTML=html; }
+  } else if(statusFilter === 'received') {
+    const html = buildGroupHtml(received, 'text-green-700', 'border-green-300', 'bg-green-50 border border-green-200', 'text-green-800', 'bg-green-200', '3. ได้รับเอกสารครบถ้วน', 'check-circle-2', 'ครบแล้ว');
+    if(!html) { emptyEl.classList.remove('hidden'); listEl.innerHTML=''; } else { emptyEl.classList.add('hidden'); listEl.innerHTML=html; }
+  }
+
+  lucide.createIcons();
+}
+
+// ========== INIT ==========
+initUI();
+lucide.createIcons();
+
+// Auto-load data if URL is already set
+if (APPS_SCRIPT_URL) {
+  loadData().then(() => {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  });
+} else {
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  showToast('กรุณาตั้งค่า Apps Script URL ในหน้า "การตั้งค่า"', 'info');
+}
+</script>
+ </body>
+</html>
